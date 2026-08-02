@@ -14,3 +14,12 @@ Herramienta de seguridad para monitorear los dispositivos conectados a mi red ca
 
 ## Estado del proyecto
 🚧 En desarrollo — Fase 1: escáner de dispositivos.
+Problemas en la primera fase:
+1. Si tienes un VPN activo en tu computadore, desactivalo. No vas a poder escanear nada.
+## Estado del proyecto
+✅ Fase 1 completa — escáner de dispositivos funcionando.
+🚧 Próximo: detección de dispositivos nuevos/desconocidos.
+## Estado del proyecto
+✅ Fase 1 completa — escáner de dispositivos.
+✅ Fase 2 completa — detección de nuevos, alertas y vista de dispositivos ausentes.
+🚧 Próximo: historial con base de datos (SQLite).

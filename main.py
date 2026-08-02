@@ -1,6 +1,8 @@
-import scapy.all as scapy
 
-def escanear_red(ip_rango):
+'Version: 1.0'
+'''import scapy.all as scapy
+
+'def escanear_red(ip_rango):
     # Crea una solicitud ARP (pregunta "¿quién tiene esta IP?")
     arp_request = scapy.ARP(pdst=ip_rango)
     broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
@@ -25,4 +27,82 @@ if __name__ == "__main__":
     # Cambia esto por el rango de tu red (normalmente es así)
     rango = "192.168.1.1/24"
     dispositivos = escanear_red(rango)
-    mostrar_resultado(dispositivos)
+    mostrar_resultado(dispositivos)'''
+
+
+import scapy.all as scapy
+import json
+import os
+
+ARCHIVO_CONOCIDOS = "dispositivos_conocidos.json"
+
+
+def escanear_red(ip_rango, intentos=3):
+    dispositivos_dict = {}
+
+    for i in range(intentos):
+        arp_request = scapy.ARP(pdst=ip_rango)
+        broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+        paquete = broadcast / arp_request
+
+        respuestas = scapy.srp(paquete, timeout=3, verbose=False, iface="en0")[0]
+
+        for enviado, recibido in respuestas:
+            dispositivos_dict[recibido.hwsrc] = recibido.psrc
+
+    dispositivos = [{"ip": ip, "mac": mac} for mac, ip in dispositivos_dict.items()]
+    return dispositivos
+
+def cargar_conocidos():
+    if not os.path.exists(ARCHIVO_CONOCIDOS):
+        return []
+    with open(ARCHIVO_CONOCIDOS, "r") as f:
+        return json.load(f)
+
+def guardar_conocidos(dispositivos):
+    with open(ARCHIVO_CONOCIDOS, "w") as f:
+        json.dump(dispositivos, f, indent=2)
+
+def comparar_dispositivos(actuales, conocidos):
+    macs_conocidas = {d["mac"] for d in conocidos}
+    nuevos = [d for d in actuales if d["mac"] not in macs_conocidas]
+    return nuevos
+
+def mostrar_resultado(dispositivos, titulo=None):
+    if titulo:
+        print(f"\n{titulo}")
+    print("IP\t\t\tMAC")
+    print("-" * 40)
+    if not dispositivos:
+        print("(ninguno)")
+    for d in dispositivos:
+        print(f"{d['ip']}\t\t{d['mac']}")
+
+if __name__ == "__main__":
+    rango = "192.168.1.1/24"
+
+    conocidos = cargar_conocidos()
+    actuales = escanear_red(rango)
+
+    mostrar_resultado(actuales, "📡 Dispositivos conectados ahora:")
+
+    if conocidos:
+        nuevos = comparar_dispositivos(actuales, conocidos)
+        if nuevos:
+            mostrar_resultado(nuevos, "🚨 ¡ALERTA! Dispositivos nuevos detectados:")
+        else:
+            print("\n✅ No hay dispositivos nuevos. Todo normal.")
+
+        # Dispositivos conocidos que NO están conectados ahora mismo
+        macs_actuales = {d["mac"] for d in actuales}
+        desconectados = [d for d in conocidos if d["mac"] not in macs_actuales]
+        mostrar_resultado(desconectados, "📴 Conocidos pero no conectados ahora:")
+    else:
+        print("\nPrimera vez corriendo el escáner — guardando estos como dispositivos conocidos.")
+        nuevos = []
+
+    # Combina conocidos + nuevos, sin duplicar por MAC
+    macs_existentes = {d["mac"] for d in conocidos}
+    actualizados = conocidos + [d for d in actuales if d["mac"] not in macs_existentes]
+
+    guardar_conocidos(actualizados)
