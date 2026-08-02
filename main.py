@@ -112,11 +112,11 @@ if __name__ == "__main__":
 
 import scapy.all as scapy
 import db
-
+from tqdm import tqdm
 def escanear_red(ip_rango, intentos=3):
     dispositivos_dict = {}
 
-    for i in range(intentos):
+    for i in tqdm(range(intentos), desc="Escaneando red", unit="intento"):
         arp_request = scapy.ARP(pdst=ip_rango)
         broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
         paquete = broadcast / arp_request
