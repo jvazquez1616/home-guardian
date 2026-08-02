@@ -113,19 +113,44 @@ if __name__ == "__main__":
 import scapy.all as scapy
 import db
 from tqdm import tqdm
+import threading
+import time
+
 def escanear_red(ip_rango, intentos=3):
     dispositivos_dict = {}
+    pasos_por_intento = 15  # entre más alto, más fluida se ve la barra
+    total_pasos = intentos * pasos_por_intento
 
-    for i in tqdm(range(intentos), desc="Escaneando red", unit="intento"):
-        arp_request = scapy.ARP(pdst=ip_rango)
-        broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
-        paquete = broadcast / arp_request
-        respuestas = scapy.srp(paquete, timeout=3, verbose=False, iface="en0")[0]
+    with tqdm(total=total_pasos, desc="Escaneando red", unit="paso") as barra:
+        for i in range(intentos):
+            resultado = {}
 
-        for enviado, recibido in respuestas:
-            dispositivos_dict[recibido.hwsrc] = recibido.psrc
+            def hacer_escaneo():
+                arp_request = scapy.ARP(pdst=ip_rango)
+                broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+                paquete = broadcast / arp_request
+                resultado["respuestas"] = scapy.srp(paquete, timeout=3, verbose=False, iface="en0")[0]
+
+            hilo = threading.Thread(target=hacer_escaneo)
+            hilo.start()
+
+            pasos_dados = 0
+            while hilo.is_alive() and pasos_dados < pasos_por_intento:
+                time.sleep(3 / pasos_por_intento)
+                barra.update(1)
+                pasos_dados += 1
+
+            hilo.join()
+
+            # Completa la barra si el escaneo terminó antes de los pasos esperados
+            if pasos_dados < pasos_por_intento:
+                barra.update(pasos_por_intento - pasos_dados)
+
+            for enviado, recibido in resultado["respuestas"]:
+                dispositivos_dict[recibido.hwsrc] = recibido.psrc
 
     return [{"ip": ip, "mac": mac} for mac, ip in dispositivos_dict.items()]
+
 
 def mostrar_resultado(dispositivos, titulo=None):
     if titulo:
