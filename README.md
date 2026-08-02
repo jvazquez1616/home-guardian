@@ -23,3 +23,8 @@ Problemas en la primera fase:
 ✅ Fase 1 completa — escáner de dispositivos.
 ✅ Fase 2 completa — detección de nuevos, alertas y vista de dispositivos ausentes.
 🚧 Próximo: historial con base de datos (SQLite).
+## Estado del proyecto
+✅ Fase 1 completa — escáner de dispositivos.
+✅ Fase 2 completa — detección de nuevos, alertas y vista de ausentes.
+✅ Fase 3 completa — historial con base de datos SQLite.
+🚧 Próximo: bloqueador de dominios estilo Pi-hole.

@@ -29,7 +29,8 @@ if __name__ == "__main__":
     dispositivos = escanear_red(rango)
     mostrar_resultado(dispositivos)'''
 
-
+'version: 2.0'
+'''
 import scapy.all as scapy
 import json
 import os
@@ -106,3 +107,59 @@ if __name__ == "__main__":
     actualizados = conocidos + [d for d in actuales if d["mac"] not in macs_existentes]
 
     guardar_conocidos(actualizados)
+
+    '''
+
+import scapy.all as scapy
+import db
+
+def escanear_red(ip_rango, intentos=3):
+    dispositivos_dict = {}
+
+    for i in range(intentos):
+        arp_request = scapy.ARP(pdst=ip_rango)
+        broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+        paquete = broadcast / arp_request
+        respuestas = scapy.srp(paquete, timeout=3, verbose=False, iface="en0")[0]
+
+        for enviado, recibido in respuestas:
+            dispositivos_dict[recibido.hwsrc] = recibido.psrc
+
+    return [{"ip": ip, "mac": mac} for mac, ip in dispositivos_dict.items()]
+
+def mostrar_resultado(dispositivos, titulo=None):
+    if titulo:
+        print(f"\n{titulo}")
+    print("IP\t\t\tMAC")
+    print("-" * 40)
+    if not dispositivos:
+        print("(ninguno)")
+    for d in dispositivos:
+        print(f"{d['ip']}\t\t{d['mac']}")
+
+if __name__ == "__main__":
+    rango = "192.168.1.1/24"
+
+    db.crear_tablas()
+    actuales = escanear_red(rango)
+
+    mostrar_resultado(actuales, "📡 Dispositivos conectados ahora:")
+
+    nuevos = []
+    for d in actuales:
+        es_nuevo = db.registrar_dispositivo(d["mac"], d["ip"])
+        if es_nuevo:
+            nuevos.append(d)
+
+    if nuevos:
+        mostrar_resultado(nuevos, "🚨 ¡ALERTA! Dispositivos nuevos detectados:")
+    else:
+        print("\n✅ No hay dispositivos nuevos. Todo normal.")
+
+    todos = db.obtener_todos_los_dispositivos()
+    macs_actuales = {d["mac"] for d in actuales}
+    desconectados = [d for d in todos if d["mac"] not in macs_actuales]
+    mostrar_resultado(
+        [{"ip": d["ip"], "mac": d["mac"]} for d in desconectados],
+        "📴 Conocidos pero no conectados ahora:"
+    )
