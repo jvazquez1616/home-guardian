@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 *.pyc
+dispositivos_conocidos.json
+home_guardian.db
+hosts_stevenblack.txt
