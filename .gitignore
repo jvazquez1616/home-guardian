@@ -4,3 +4,4 @@ __pycache__/
 dispositivos_conocidos.json
 home_guardian.db
 hosts_stevenblack.txt
+.env

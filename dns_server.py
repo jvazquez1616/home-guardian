@@ -2,11 +2,22 @@ from dnslib import DNSRecord, DNSHeader, RR, A
 from dnslib.server import DNSServer, BaseResolver
 import socket
 import os
+import time
 
 CARPETA_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 ARCHIVO_LISTA_NEGRA = os.path.join(CARPETA_SCRIPT, "lista_negra.txt")
-DNS_UPSTREAM = "8.8.8.8"  # DNS real al que reenviamos lo que no está bloqueado
+DNS_UPSTREAM = "8.8.8.8"
 
+def cargar_lista_negra_desde_hosts(archivo_hosts):
+    dominios = set()
+    with open(archivo_hosts, "r") as f:
+        for linea in f:
+            linea = linea.strip()
+            if linea.startswith("0.0.0.0") or linea.startswith("127.0.0.1"):
+                partes = linea.split()
+                if len(partes) >= 2:
+                    dominios.add(partes[1].lower())
+    return dominios
 
 def cargar_lista_negra():
     dominios = set()
@@ -20,17 +31,6 @@ def cargar_lista_negra():
 
     return dominios
 
-def cargar_lista_negra_desde_hosts(archivo_hosts):
-    dominios = set()
-    with open(archivo_hosts, "r") as f:
-        for linea in f:
-            linea = linea.strip()
-            if linea.startswith("0.0.0.0") or linea.startswith("127.0.0.1"):
-                partes = linea.split()
-                if len(partes) >= 2:
-                    dominios.add(partes[1].lower())
-    return dominios
-
 class ResolverBloqueador(BaseResolver):
     def __init__(self):
         self.lista_negra = cargar_lista_negra()
@@ -42,7 +42,6 @@ class ResolverBloqueador(BaseResolver):
 
         respuesta = request.reply()
 
-        # ¿Está el dominio (o algún dominio padre) en la lista negra?
         bloqueado = any(dominio == d or dominio.endswith("." + d) for d in self.lista_negra)
 
         if bloqueado:
@@ -50,7 +49,6 @@ class ResolverBloqueador(BaseResolver):
             respuesta.add_answer(RR(pregunta.qname, rdata=A("0.0.0.0"), ttl=60))
             return respuesta
 
-        # Si no está bloqueado, reenvía la pregunta al DNS real
         try:
             consulta_real = request.send(DNS_UPSTREAM, 53, timeout=3)
             respuesta_real = DNSRecord.parse(consulta_real)
@@ -59,7 +57,8 @@ class ResolverBloqueador(BaseResolver):
             print(f"Error consultando DNS real para {dominio}: {e}")
             return respuesta
 
-if __name__ == "__main__":
+
+def iniciar_servidor_dns():
     resolver = ResolverBloqueador()
     servidor = DNSServer(resolver, port=53, address="127.0.0.1")
     print("Servidor DNS corriendo en 127.0.0.1:53 (Ctrl+C para detener)")
@@ -67,6 +66,10 @@ if __name__ == "__main__":
 
     try:
         while servidor.isAlive():
-            pass
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nDeteniendo servidor DNS...")
+
+
+if __name__ == "__main__":
+    iniciar_servidor_dns()
